@@ -64,7 +64,7 @@
       <div class="mt-4">
         <div v-if="activeTab === 'posts'" class="">
           <vue-masonry-wall
-            v-if="!loading && !error"
+            v-if="!loading"
             :items="photos"
             class="masonry-container"
           >
@@ -90,7 +90,7 @@
 
         <div v-else-if="activeTab === 'likes'">
           <vue-masonry-wall
-            v-if="!loading && !error"
+            v-if="!loading"
             :items="likedPhotos"
             class="masonry-container"
           >
@@ -104,14 +104,6 @@
                   />
                 </div>
 
-                <LikeIcon
-                  :class="{
-                    'text-red-500': item.liked,
-                    'text-gray-500': !item.liked,
-                  }"
-                  @click="handleLike(item)"
-                  class="cursor-pointer"
-                />
                 <p
                   class="text-start font-semibold overflow-hidden text-ellipsis"
                 >
@@ -135,6 +127,7 @@ import { supabase } from "../supabase";
 const activeTab = ref("posts");
 const photos = ref([]);
 const likedPhotos = ref([]);
+const loading = ref(false);
 
 const user = ref({
   id: "", // Add an id field to store the user's ID
@@ -165,15 +158,26 @@ onMounted(async () => {
     }
 
     const { data: userLikedData, error: likedError } = await supabase
-      .from("posts")
+      .from("likes")
       .select("*")
-      .eq("user_id", userData.id)
-      .eq("liked", true);
+      .eq("user_id", userData.id);
+
+    const { data: allPosts, error: allPostsError } = await supabase
+      .from("posts")
+      .select("*");
+
+    if (allPostsError) {
+      console.log(allPostsError);
+    }
+
+    const likedPostIds = allPosts.filter((post) =>
+      userLikedData.some((like) => like.post_id === post.id)
+    );
 
     if (likedError) {
       console.log(likedError);
     } else {
-      likedPhotos.value = userLikedData;
+      likedPhotos.value = likedPostIds;
     }
 
     const { data, error } = await supabase
@@ -182,7 +186,7 @@ onMounted(async () => {
       .eq("id", userData.id)
       .single();
     if (!error && data) {
-      user.value = data; // Ensure user has the ID field
+      user.value = data;
     }
   }
 });
@@ -211,13 +215,10 @@ const uploadProfilePicture = async (event) => {
     .from("user_profiles")
     .getPublicUrl(data.path);
 
-  console.log(data.path);
-
   if (urlError) {
     console.error("Error getting public URL:", urlError);
     return;
   }
-  console.log(publicURL.publicUrl);
 
   // Save the URL of the profile picture in the 'user_profile' column
   const { error: updateError } = await supabase

@@ -1,3 +1,128 @@
+<script setup>
+import { ref, onMounted } from "vue";
+import { supabase } from "../supabase";
+import PhotoForm from "../components/PhotoForm.vue";
+import { useRouter } from "vue-router";
+import VueMasonryWall from "@yeger/vue-masonry-wall";
+import LikeIcon from "../assets/icons/LikeIcon.vue";
+
+const photos = ref([]);
+const loading = ref(true);
+const error = ref(null);
+const isModalOpen = ref(false);
+
+const router = useRouter();
+
+// Fetch the likes from the 'likes' table and set the 'liked' property on each photo
+const fetchLikes = async () => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  if (userData) {
+    // Fetch liked posts for the current user
+    const { data: likesData, error: fetchLikesError } = await supabase
+      .from("likes")
+      .select("post_id")
+      .eq("user_id", userData.id);
+
+    if (fetchLikesError) {
+      alert(fetchLikesError.message);
+    }
+
+    // Add a 'liked' property to each photo based on the liked posts
+    photos.value.forEach((photo) => {
+      const isLiked = likesData.some((like) => like.post_id === photo.id);
+      photo.liked = isLiked;
+    });
+  }
+};
+
+// Handle like action
+const handleLike = async (photo) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  const { data: likePostData, error: insertError } = await supabase
+    .from("likes")
+    .insert([
+      {
+        post_id: photo.id,
+        user_id: userData.id,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+  if (insertError) {
+    alert(insertError.message);
+  } else {
+    photo.liked = true;
+  }
+};
+
+// Handle unlike action
+const handleUnliked = async (photo) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  const { data: unLikePostData, error: deleteError } = await supabase
+    .from("likes")
+    .delete()
+    .eq("post_id", photo.id)
+    .eq("user_id", userData.id);
+
+  if (deleteError) {
+    alert(deleteError.message);
+  } else {
+    photo.liked = false;
+  }
+};
+
+const handleClick = (photo) => {
+  router.push(`/gallery/${photo.id}`);
+};
+
+const fetchImages = async () => {
+  loading.value = true;
+  error.value = null;
+
+  const { data, error: fetchError } = await supabase
+    .from("posts")
+    .select("id, name, description, image_url");
+
+  if (fetchError) {
+    error.value = "Error fetching images!";
+  } else {
+    photos.value = data;
+  }
+
+  loading.value = false;
+  fetchLikes();
+};
+
+// Open the modal
+const openModal = () => {
+  isModalOpen.value = true;
+};
+
+// Close the modal
+const closeModal = () => {
+  isModalOpen.value = false;
+};
+
+// Handle image upload success
+const handleImageUploaded = () => {
+  fetchImages();
+  closeModal();
+};
+
+onMounted(() => {
+  fetchImages();
+});
+</script>
+
 <template>
   <div class="container mx-auto">
     <button
@@ -13,14 +138,13 @@
 
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
 
-    <!-- Use vue-masonry-wall for masonry layout -->
     <vue-masonry-wall
       v-if="!loading && !error"
       :items="photos"
       class="masonry-container"
     >
       <template v-slot:default="{ item }">
-        <div class="photo-item">
+        <div class="p-1">
           <div class="relative p-1 bg-black" @click="handleClick(item)">
             <img
               :src="item.image_url"
@@ -30,11 +154,8 @@
           </div>
 
           <LikeIcon
-            :class="{
-              'text-red-500': item.liked,
-              'text-gray-500': !item.liked,
-            }"
-            @click="handleLike(item)"
+            :class="item.liked ? 'text-red-500' : 'text-gray-500'"
+            @click="item.liked ? handleUnliked(item) : handleLike(item)"
             class="cursor-pointer"
           />
 
@@ -45,7 +166,6 @@
       </template>
     </vue-masonry-wall>
 
-    <!-- Modal -->
     <div
       v-if="isModalOpen"
       class="fixed inset-0 backdrop-blur-sm bg-black/10 flex items-center justify-center z-50"
@@ -63,101 +183,3 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import VueMasonryWall from "@yeger/vue-masonry-wall";
-import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import LikeIcon from "../assets/icons/LikeIcon.vue";
-import PhotoForm from "../components/PhotoForm.vue";
-import { supabase } from "../supabase";
-
-const photos = ref([]);
-const loading = ref(true);
-const error = ref(null);
-const isModalOpen = ref(false);
-
-const router = useRouter();
-
-const handleLike = async (photo) => {
-  const {
-    data: { user: userData },
-  } = await supabase.auth.getUser();
-
-  // Optimistic UI Update: Update the liked status in the local photos array
-  const updatedPhotos = photos.value.map((item) => {
-    if (item.id === photo.id) {
-      item.liked = !item.liked;
-    }
-    return item;
-  });
-  photos.value = updatedPhotos;
-
-  const { data, error } = await supabase
-    .from("posts")
-    .update({ liked: photo.liked })
-    .eq("id", photo.id)
-    .eq("user_id", userData.id);
-
-  if (error) {
-    alert(error.message);
-    // Revert the optimistic update if there's an error
-    const revertedPhotos = photos.value.map((item) => {
-      if (item.id === photo.id) {
-        item.liked = !item.liked;
-      }
-      return item;
-    });
-    photos.value = revertedPhotos;
-  }
-};
-
-const handleClick = (photo) => {
-  router.push(`/gallery/${photo.id}`);
-};
-
-const fetchImages = async () => {
-  loading.value = true;
-  error.value = null;
-
-  const { data, error: fetchError } = await supabase
-    .from("posts")
-    .select("id, name, description, image_url, liked");
-
-  if (fetchError) {
-    error.value = "Error fetching images!";
-  } else {
-    photos.value = data;
-  }
-
-  loading.value = false;
-};
-
-const openModal = () => {
-  isModalOpen.value = true;
-};
-
-const closeModal = () => {
-  isModalOpen.value = false;
-};
-
-const handleImageUploaded = () => {
-  fetchImages();
-  closeModal();
-};
-
-onMounted(fetchImages);
-</script>
-
-<style scoped>
-/* Optional styling for your items, modify as needed */
-.photo-item {
-  padding: 4px;
-}
-
-/* .masonry-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-} */
-</style>
