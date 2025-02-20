@@ -132,13 +132,15 @@ const handleRegister = async () => {
   const res = await supabase.auth.signUp({
     email: email.value,
     password: password.value,
+    options: {
+      emailRedirectTo: "https://viewgallery.vercel.app/",
+    },
   });
 
   if (res.error) {
     alert(res.error.message);
   } else {
     alert("User registered");
-    router.push("/login");
   }
 
   // Step 2: Insert user info into the database if registration is successful
@@ -156,9 +158,7 @@ const handleRegister = async () => {
     alert(insertError.message);
   } else {
     alert("User registered successfully! Check your email to verify.");
-    router.push("/login");
+    router.push("/");
   }
-
-  router.push("/login");
 };
 </script>
