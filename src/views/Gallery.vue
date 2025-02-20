@@ -1,3 +1,128 @@
+<script setup>
+import { ref, onMounted } from "vue";
+import { supabase } from "../supabase";
+import PhotoForm from "../components/PhotoForm.vue";
+import { useRouter } from "vue-router";
+import VueMasonryWall from "@yeger/vue-masonry-wall";
+import LikeIcon from "../assets/icons/LikeIcon.vue";
+
+const photos = ref([]);
+const loading = ref(true);
+const error = ref(null);
+const isModalOpen = ref(false);
+
+const router = useRouter();
+
+// Fetch the likes from the 'likes' table and set the 'liked' property on each photo
+const fetchLikes = async () => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  if (userData) {
+    // Fetch liked posts for the current user
+    const { data: likesData, error: fetchLikesError } = await supabase
+      .from("likes")
+      .select("post_id")
+      .eq("user_id", userData.id);
+
+    if (fetchLikesError) {
+      alert(fetchLikesError.message);
+    }
+
+    // Add a 'liked' property to each photo based on the liked posts
+    photos.value.forEach((photo) => {
+      const isLiked = likesData.some((like) => like.post_id === photo.id);
+      photo.liked = isLiked;
+    });
+  }
+};
+
+// Handle like action
+const handleLike = async (photo) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  const { data: likePostData, error: insertError } = await supabase
+    .from("likes")
+    .insert([
+      {
+        post_id: photo.id,
+        user_id: userData.id,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+  if (insertError) {
+    alert(insertError.message);
+  } else {
+    photo.liked = true;
+  }
+};
+
+// Handle unlike action
+const handleUnliked = async (photo) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  const { data: unLikePostData, error: deleteError } = await supabase
+    .from("likes")
+    .delete()
+    .eq("post_id", photo.id)
+    .eq("user_id", userData.id);
+
+  if (deleteError) {
+    alert(deleteError.message);
+  } else {
+    photo.liked = false;
+  }
+};
+
+const handleClick = (photo) => {
+  router.push(`/gallery/${photo.id}`);
+};
+
+const fetchImages = async () => {
+  loading.value = true;
+  error.value = null;
+
+  const { data, error: fetchError } = await supabase
+    .from("posts")
+    .select("id, name, description, image_url");
+
+  if (fetchError) {
+    error.value = "Error fetching images!";
+  } else {
+    photos.value = data;
+  }
+
+  loading.value = false;
+  fetchLikes();
+};
+
+// Open the modal
+const openModal = () => {
+  isModalOpen.value = true;
+};
+
+// Close the modal
+const closeModal = () => {
+  isModalOpen.value = false;
+};
+
+// Handle image upload success
+const handleImageUploaded = () => {
+  fetchImages();
+  closeModal();
+};
+
+onMounted(() => {
+  fetchImages();
+});
+</script>
+
 <template>
   <div class="container mx-auto">
     <button
@@ -13,25 +138,34 @@
 
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
 
-    <div
-      v-else
-      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    <vue-masonry-wall
+      v-if="!loading && !error"
+      :items="photos"
+      class="masonry-container"
     >
-      <div v-for="photo in photos" :key="photo.id" @click="handleClick(photo)">
-        <div class="p-1 bg-black">
-          <img
-            :src="photo.image_url"
-            alt="Uploaded Image"
-            class="w-full object-cover transition-all"
-          />
-        </div>
-        <p class="text-start font-semibold overflow-hidden text-ellipsis">
-          {{ photo.name }}
-        </p>
-      </div>
-    </div>
+      <template v-slot:default="{ item }">
+        <div class="p-1">
+          <div class="relative p-1 bg-black" @click="handleClick(item)">
+            <img
+              :src="item.image_url"
+              alt="Uploaded Image"
+              class="w-full object-cover transition-all"
+            />
+          </div>
 
-    <!-- Modal -->
+          <LikeIcon
+            :class="item.liked ? 'text-red-500' : 'text-gray-500'"
+            @click="item.liked ? handleUnliked(item) : handleLike(item)"
+            class="cursor-pointer"
+          />
+
+          <p class="text-start font-semibold overflow-hidden text-ellipsis">
+            {{ item.name }}
+          </p>
+        </div>
+      </template>
+    </vue-masonry-wall>
+
     <div
       v-if="isModalOpen"
       class="fixed inset-0 backdrop-blur-sm bg-black/10 flex items-center justify-center z-50"
@@ -49,54 +183,3 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import { ref, onMounted } from "vue";
-import { supabase } from "../supabase";
-import PhotoForm from "../components/PhotoForm.vue";
-import { useRouter } from "vue-router";
-
-const photos = ref([]);
-const loading = ref(true);
-const error = ref(null);
-const isModalOpen = ref(false);
-
-const router = useRouter();
-
-const handleClick = (photo) => {
-  router.push(`/gallery/${photo.id}`);
-};
-
-const fetchImages = async () => {
-  loading.value = true;
-  error.value = null;
-
-  const { data, error: fetchError } = await supabase
-    .from("posts")
-    .select("id, name, description, image_url");
-  // .order("created_at", { ascending: false });
-
-  if (fetchError) {
-    error.value = "Error fetching images!";
-  } else {
-    photos.value = data;
-  }
-
-  loading.value = false;
-};
-
-const openModal = () => {
-  isModalOpen.value = true;
-};
-
-const closeModal = () => {
-  isModalOpen.value = false;
-};
-
-const handleImageUploaded = () => {
-  fetchImages();
-  closeModal();
-};
-
-onMounted(fetchImages);
-</script>

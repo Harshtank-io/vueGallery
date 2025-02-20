@@ -80,7 +80,10 @@ const handleSubmit = async () => {
   uploading.value = true;
 
   // Get the current user
-  const user = supabase.auth.getUser();
+  const {
+    data: { user: user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     message.value = "You must be logged in to submit";
     uploading.value = false;
@@ -110,7 +113,7 @@ const handleSubmit = async () => {
       name: name.value,
       description: description.value,
       image_url: publicUrlData.publicUrl,
-      user_id: user.id, // Add the user ID who submitted the form
+      user_id: user.id,
     },
   ]);
 

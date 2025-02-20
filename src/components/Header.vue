@@ -24,19 +24,22 @@
         <button
           v-else
           @click="handleLogout"
-          class="border-2 py-2 px-8 bg-black hover:bg-white hover:text-black text-white transition"
+          class="border-2 py-1 px-4 bg-black hover:bg-white hover:text-black text-white transition"
         >
           Logout
         </button>
 
         <!-- User Profile Button -->
-        <button
+        <!-- <button
           v-if="isUserValid"
           @click="handleProfile"
-          class="border-2 py-2 px-8 bg-gray-200 hover:bg-purple-700 hover:text-black text-black transition"
+          class="border-2 py-1 px-4 hover:bg-purple-700 hover:text-black text-black transition"
         >
           Profile
-        </button>
+        </button> -->
+        <PrimaryButton v-if="isUserValid" @click="handleProfile"
+          >profile</PrimaryButton
+        >
       </div>
     </nav>
   </div>
@@ -46,6 +49,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { supabase } from "../supabase";
+import PrimaryButton from "./buttons/PrimaryButton.vue";
 
 const navs = [
   { name: "Home", path: "/" },
@@ -80,6 +84,7 @@ const handleLogout = async () => {
 };
 
 const handleProfile = () => {
+  console.log("jhdsgfuasdf");
   router.push("/profile");
 };
 
