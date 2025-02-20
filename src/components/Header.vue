@@ -84,7 +84,6 @@ const handleLogout = async () => {
 };
 
 const handleProfile = () => {
-  console.log("jhdsgfuasdf");
   router.push("/profile");
 };
 
