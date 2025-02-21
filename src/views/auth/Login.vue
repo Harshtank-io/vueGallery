@@ -117,7 +117,6 @@ const router = useRouter();
 const handleGoogleLogin = async () => {
   const { user, session, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    // token: token,
   });
 
   if (error) {

@@ -121,8 +121,8 @@
 <script setup>
 import VueMasonryWall from "@yeger/vue-masonry-wall";
 import { onMounted, ref } from "vue";
-import LikeIcon from "../assets/icons/LikeIcon.vue";
 import { supabase } from "../supabase";
+import useSWRV from "swrv";
 
 const activeTab = ref("posts");
 const photos = ref([]);
@@ -204,7 +204,7 @@ const uploadProfilePicture = async (event) => {
   const fileName = `${user.value.id}/profile-pic.${file.name.split(".").pop()}`;
   const { data, error } = await supabase.storage
     .from("user_profiles")
-    .upload(fileName, file);
+    .update(fileName, file);
 
   if (error) {
     console.error("Error uploading file:", error);
