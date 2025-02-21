@@ -72,7 +72,7 @@ import PhotoForm from "../components/PhotoForm.vue";
 import { useRouter } from "vue-router";
 import VueMasonryWall from "@yeger/vue-masonry-wall";
 import LikeIcon from "../assets/icons/LikeIcon.vue";
-import CommentIcon from "../assets/icons/CommentIcon.vue";
+// import CommentIcon from "../assets/icons/CommentIcon.vue";
 
 const photos = ref([]);
 const loading = ref(true);
