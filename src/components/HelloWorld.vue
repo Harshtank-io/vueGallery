@@ -9,7 +9,7 @@
     </div>
 
     <div>
-      <h1 class="text-6xl font-bold">Welcome to the Vue Gallery!</h1>
+      <h1 class="text-6xl font-bold">Welcome to the View Gallery!</h1>
 
       <div class="mt-6 space-y-2 text-lg">
         <p>
@@ -19,7 +19,7 @@
       </div>
     </div>
   </div>
-  <img src="../assets/images/bg-hero.jpg" alt="Vue Gallery" />
+  <img src="../assets/images/bg-hero.jpg" alt="View Gallery" />
 </template>
 
 <script setup>

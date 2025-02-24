@@ -1,15 +1,18 @@
 <template>
-  <div class="container mx-auto">
-    <button
-      @click="openModal"
-      class="mb-8 px-4 py-2 bg-black text-white hover:bg-gray-800 transition"
+  <div class="container relative mx-auto flex flex-col">
+    <div
+      v-if="loading"
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
     >
-      Add your story
-    </button>
-
-    <h2 class="text-2xl font-semibold mb-4">Stories</h2>
-
-    <div v-if="loading">Loading images...</div>
+      <!-- Skeleton Loader -->
+      <div v-for="n in 8" :key="n" class="p-1 bg-gray-200 shadow-lg">
+        <div class="h-48 bg-gray-300 animate-pulse"></div>
+        <div class="mt-4">
+          <div class="h-6 bg-gray-300 animate-pulse rounded w-3/4"></div>
+          <div class="h-4 bg-gray-300 animate-pulse rounded mt-2 w-1/2"></div>
+        </div>
+      </div>
+    </div>
 
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
 
@@ -37,12 +40,40 @@
             {{ item.likes.length }}
             <p>likes</p>
 
-            <!-- <CommentIcon />   -->
+            <CommentIcon @click="toggleCommentBox(item)" />
           </div>
-
           <p class="text-start font-semibold overflow-hidden text-ellipsis">
             {{ item.name }}
           </p>
+
+          <div v-if="item.isCommentOpen" class="mt-2">
+            <div class="flex items-center gap-2">
+              <input
+                v-model="item.commentText"
+                placeholder="Write a comment..."
+                class="border p-2 w-full"
+              />
+              <button
+                @click="handleComment(item)"
+                class="bg-black text-white p-2"
+              >
+                <SendIcon />
+              </button>
+            </div>
+            <div v-if="item.comments && item.comments.length > 0" class="mt-4">
+              <p class="font-semibold">Comments:</p>
+              <div
+                v-for="comment in item.comments"
+                :key="comment.id"
+                class="mt-2"
+              >
+                <p>
+                  <strong>{{ comment.users.user_name }}</strong
+                  >: {{ comment.content }}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
     </vue-masonry-wall>
@@ -51,17 +82,24 @@
       v-if="isModalOpen"
       class="fixed inset-0 backdrop-blur-sm bg-black/10 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 rounded-lg max-w-md w-full">
+      <div class="bg-white p-6 max-w-md w-full">
         <h3 class="text-xl font-semibold mb-4">Add New Photo</h3>
         <PhotoForm @imageUploaded="handleImageUploaded" />
         <button
           @click="closeModal"
-          class="mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+          class="mt-4 px-4 py-2 bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
         >
           Close
         </button>
       </div>
     </div>
+
+    <button
+      @click="openModal"
+      class="mb-8 px-4 py-2 bg-black text-white hover:bg-gray-800 transition sticky bottom-5 self-center"
+    >
+      <PlusIcon />
+    </button>
   </div>
 </template>
 
@@ -72,7 +110,8 @@ import PhotoForm from "../components/PhotoForm.vue";
 import { useRouter } from "vue-router";
 import VueMasonryWall from "@yeger/vue-masonry-wall";
 import LikeIcon from "../assets/icons/LikeIcon.vue";
-// import CommentIcon from "../assets/icons/CommentIcon.vue";
+import CommentIcon from "../assets/icons/CommentIcon.vue";
+import { PlusIcon, SendIcon } from "lucide-vue-next";
 
 const photos = ref([]);
 const loading = ref(true);
@@ -148,26 +187,77 @@ const handleUnliked = async (photo) => {
   }
 };
 
-const handleClick = (photo) => {
-  router.push(`/gallery/${photo.id}`);
+// Fetch and handle comments for the post
+const handleComment = async (photo) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  const { data: commentData, error: commentError } = await supabase
+    .from("comments")
+    .insert([
+      {
+        post_id: photo.id,
+        user_id: userData.id,
+        content: photo.commentText,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+  if (commentError) {
+    alert(commentError.message);
+  } else {
+    photo.comments.push(commentData);
+    photo.commentText = "";
+  }
 };
 
+// Toggle comment box visibility
+const toggleCommentBox = (photo) => {
+  photo.isCommentOpen = !photo.isCommentOpen;
+};
+
+// Fetch images and comments
 const fetchImages = async () => {
   loading.value = true;
   error.value = null;
 
   const { data, error: fetchError } = await supabase
     .from("posts")
-    .select("id, name, description, image_url,likes(post_id) ");
+    .select("id, name, description, image_url, likes(post_id)");
 
   if (fetchError) {
     error.value = "Error fetching images!";
   } else {
     photos.value = data;
+    await fetchComments();
   }
 
   loading.value = false;
   fetchLikes();
+};
+
+// Fetch comments for each post
+const fetchComments = async () => {
+  const { data: commentsData, error } = await supabase
+    .from("comments")
+    .select("id, post_id, user_id, content, users(id, user_name)")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  photos.value.forEach((photo) => {
+    photo.comments = commentsData.filter(
+      (comment) => comment.post_id === photo.id
+    );
+  });
+};
+
+const handleClick = (photo) => {
+  router.push(`/gallery/${photo.id}`);
 };
 
 // Open the modal
@@ -180,7 +270,6 @@ const closeModal = () => {
   isModalOpen.value = false;
 };
 
-// Handle image upload success
 const handleImageUploaded = () => {
   fetchImages();
   closeModal();
