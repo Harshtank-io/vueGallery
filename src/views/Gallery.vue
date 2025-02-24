@@ -23,7 +23,10 @@
     >
       <template v-slot:default="{ item }">
         <div class="p-1">
-          <div class="relative p-1 bg-black" @click="handleClick(item)">
+          <div
+            class="relative p-1 bg-black cursor-pointer"
+            @click="handleVisit(item)"
+          >
             <img
               :src="item.image_url"
               alt="Uploaded Image"
@@ -31,7 +34,7 @@
             />
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 cursor-pointer">
             <LikeIcon
               :class="item.liked ? 'text-red-500' : 'text-gray-500'"
               @click="item.liked ? handleUnliked(item) : handleLike(item)"
@@ -46,6 +49,7 @@
             {{ item.name }}
           </p>
 
+          <!-- Comments -->
           <div v-if="item.isCommentOpen" class="mt-2">
             <div class="flex items-center gap-2">
               <input
@@ -112,6 +116,7 @@ import VueMasonryWall from "@yeger/vue-masonry-wall";
 import LikeIcon from "../assets/icons/LikeIcon.vue";
 import CommentIcon from "../assets/icons/CommentIcon.vue";
 import { PlusIcon, SendIcon } from "lucide-vue-next";
+import ActionIcon from "../assets/icons/ActionIcon.vue";
 
 const photos = ref([]);
 const loading = ref(true);
@@ -143,6 +148,11 @@ const fetchLikes = async () => {
       photo.liked = isLiked;
     });
   }
+};
+
+// Handle visit profile action
+const handleVisit = (photo) => {
+  router.push(`/profile/${photo.user_id}`);
 };
 
 // Handle like action
@@ -224,7 +234,7 @@ const fetchImages = async () => {
 
   const { data, error: fetchError } = await supabase
     .from("posts")
-    .select("id, name, description, image_url, likes(post_id)");
+    .select("id, name, description, image_url, user_id, likes(post_id)");
 
   if (fetchError) {
     error.value = "Error fetching images!";
@@ -254,10 +264,6 @@ const fetchComments = async () => {
       (comment) => comment.post_id === photo.id
     );
   });
-};
-
-const handleClick = (photo) => {
-  router.push(`/gallery/${photo.id}`);
 };
 
 // Open the modal

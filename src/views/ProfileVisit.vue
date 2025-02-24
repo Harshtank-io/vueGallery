@@ -2,9 +2,7 @@
   <div>
     <div class="text-white flex flex-col md:flex-row gap-6 items-stretch">
       <!-- Profile Image -->
-      <div
-        class="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 border-4 border-black items-stretch"
-      >
+      <div class="md:w-40 md:h-40 flex-shrink-0 bg-black p-1 items-stretch">
         <img
           :src="user.user_profile || defaultProfilePicture"
           alt="Profile Picture"
@@ -13,26 +11,10 @@
       </div>
 
       <!-- User Information -->
-      <div class="flex-1 text-black">
-        <h2 class="text-3xl font-bold">{{ user.user_name }}</h2>
+      <div class="flex-1 text-black p-2">
+        <h2 class="text-3xl font-bold">{{ user.name }}</h2>
         <p class="text-xl">{{ user.email }}</p>
         <p class="mt-3 text-gray-700">{{ user.bio }}</p>
-
-        <!-- Profile Actions -->
-        <div class="mt-4 flex gap-3">
-          <button
-            @click="isEditOpen = true"
-            class="cursor-pointer px-4 py-2 bg-white border text-black hover:bg-black hover:text-white transition"
-          >
-            Edit Profile
-          </button>
-          <EditProfile
-            :user="user"
-            :isOpen="isEditOpen"
-            @close="isEditOpen = false"
-            @updateUser="updateUser"
-          />
-        </div>
       </div>
     </div>
     <div class="mt-6">
@@ -122,14 +104,15 @@
 import VueMasonryWall from "@yeger/vue-masonry-wall";
 import { onMounted, ref } from "vue";
 import { supabase } from "../supabase";
-import EditProfile from "../components/EditProfile.vue";
-import logo from "../assets/icons/logo.png";
+import { useRoute, useRouter } from "vue-router";
 
 const activeTab = ref("posts");
 const photos = ref([]);
 const likedPhotos = ref([]);
 const loading = ref(false);
-const isEditOpen = ref(false);
+const router = useRoute();
+
+const profileId = router.params.id;
 
 const user = ref({
   id: "", // Add an id field to store the user's ID
@@ -139,18 +122,17 @@ const user = ref({
   user_profile: "",
 });
 
-const defaultProfilePicture = logo;
+const defaultProfilePicture =
+  "https://img.freepik.com/free-photo/bright-neon-colors-shining-wild-chameleon_23-2151682804.jpg";
 
 onMounted(async () => {
-  const {
-    data: { user: userData },
-  } = await supabase.auth.getUser();
+  const userData = profileId;
 
   if (userData) {
     const { data: userPostData, error: postError } = await supabase
       .from("posts")
       .select("*")
-      .eq("user_id", userData.id);
+      .eq("user_id", profileId);
 
     if (postError) {
       console.log(postError);
@@ -161,7 +143,7 @@ onMounted(async () => {
     const { data: userLikedData, error: likedError } = await supabase
       .from("likes")
       .select("*")
-      .eq("user_id", userData.id);
+      .eq("user_id", profileId);
 
     const { data: allPosts, error: allPostsError } = await supabase
       .from("posts")
@@ -184,7 +166,7 @@ onMounted(async () => {
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .eq("id", userData.id)
+      .eq("id", profileId)
       .single();
     if (!error && data) {
       user.value = data;

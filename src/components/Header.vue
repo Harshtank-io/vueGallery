@@ -52,7 +52,7 @@
             @click="handleLogout"
             class="border-2 py-1 px-4 bg-black hover:bg-white hover:text-black text-white transition"
           >
-            Logout
+            <LogoutIcon />
           </button>
         </template>
       </div>
@@ -95,6 +95,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { supabase } from "../supabase";
+import LogoutIcon from "../assets/icons/LogoutIcon.vue";
 import PrimaryButton from "./buttons/PrimaryButton.vue";
 
 const navs = [

@@ -57,10 +57,10 @@ const fetchData = async () => {
   error.value = null;
 
   const { data: record, error: fetchError } = await supabase
-    .from("posts") // Replace with your table name
-    .select("*") // Fetch all columns
-    .eq("id", id) // Filter by ID
-    .single(); // Get a single record
+    .from("posts")
+    .select("*")
+    .eq("id", id)
+    .single();
 
   if (fetchError) {
     error.value = "Error fetching data!";
