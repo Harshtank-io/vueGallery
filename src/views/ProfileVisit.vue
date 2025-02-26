@@ -21,19 +21,22 @@
         </div>
         <div v-if="!isItMe">
           <button
-            v-if="user.isFollowing"
-            @click="handleUnfollow(user)"
-            class="mt-4"
+            @click="user.isFollowing ? handleUnfollow() : handleFollow()"
+            class="mt-4 px-4 py-2 transition-colors duration-200 border"
+            :class="{
+              'bg-white hover:bg-black hover:text-white text-black':
+                user.isFollowing,
+              'bg-black hover:bg-white hover:text-black text-white ':
+                !user.isFollowing,
+            }"
+            :disabled="loadingFollow"
           >
-            Unfollow
-          </button>
-          <button v-else @click="handleFollow(user)" class="mt-4">
-            Follow
+            {{ user.isFollowing ? "Unfollow" : "Follow" }}
+            <span v-if="loadingFollow" class="ml-2 animate-spin">↻</span>
           </button>
         </div>
       </div>
     </div>
-
     <div class="mt-6">
       <div class="flex border-b border-gray-700">
         <button
@@ -126,6 +129,7 @@ const activeTab = ref("posts");
 const photos = ref([]);
 const likedPhotos = ref([]);
 const loading = ref(false);
+const loadingFollow = ref(false); // New loading state for follow/unfollow
 const isItMe = ref(false);
 const user = ref({
   id: "",
@@ -137,131 +141,112 @@ const user = ref({
 });
 
 const defaultProfilePicture = logo;
-const router = useRoute();
-const profileId = router.params.id;
+const route = useRoute(); // Changed from router to route
+const profileId = route.params.id;
 
-const handleFollow = async (user) => {
-  const {
-    data: { user: userData },
-  } = await supabase.auth.getUser();
+const handleFollow = async () => {
+  try {
+    loadingFollow.value = true;
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
 
-  const { data: existingFollow, error: checkError } = await supabase
-    .from("follower")
-    .select("*")
-    .match({
-      user_id: userData.id,
-      following_id: user.id,
+    const { error: followError } = await supabase.from("follower").insert({
+      user_id: currentUser.id,
+      following_id: profileId,
+      created_at: new Date().toISOString(),
     });
-
-  if (checkError) {
-    alert(checkError.message);
-    return;
-  }
-
-  if (existingFollow.length === 0) {
-    const { data: followData, error: followError } = await supabase
-      .from("follower")
-      .insert([
-        {
-          user_id: userData.id,
-          following_id: user.id,
-          created_at: new Date().toISOString(),
-        },
-      ]);
 
     if (followError) {
       alert(followError.message);
-    } else {
-      user.isFollowing = true;
+      return;
     }
-  } else {
-    alert("You are already following this user.");
+
+    user.value.isFollowing = true;
+  } catch (error) {
+    alert("Error following user: " + error.message);
+  } finally {
+    loadingFollow.value = false;
   }
 };
 
-const handleUnfollow = async (user) => {
-  const {
-    data: { user: userData },
-  } = await supabase.auth.getUser();
+const handleUnfollow = async () => {
+  try {
+    loadingFollow.value = true;
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
 
-  const { data: unfollowData, error: unfollowError } = await supabase
-    .from("follower")
-    .delete()
-    .match({ user_id: userData.id, following_id: user.id });
+    const { error: unfollowError } = await supabase
+      .from("follower")
+      .delete()
+      .match({
+        user_id: currentUser.id,
+        following_id: profileId,
+      });
 
-  if (unfollowError) {
-    alert(unfollowError.message);
-  } else {
-    user.isFollowing = false;
+    if (unfollowError) {
+      alert(unfollowError.message);
+      return;
+    }
+
+    user.value.isFollowing = false;
+  } catch (error) {
+    alert("Error unfollowing user: " + error.message);
+  } finally {
+    loadingFollow.value = false;
   }
 };
 
 const fetchUserData = async () => {
   try {
-    const { data: currentUser, error: currentUserError } =
-      await supabase.auth.getUser();
-    if (currentUserError) throw currentUserError;
+    loading.value = true;
+    const { data: currentUser } = await supabase.auth.getUser();
 
     isItMe.value = currentUser.user.id === profileId;
 
-    const { data: userData, error: userError } = await supabase
+    // Fetch user data
+    const { data: userData } = await supabase
       .from("users")
       .select("*")
       .eq("id", profileId)
       .single();
-    if (userError) {
-      console.error(userError);
-    } else {
-      user.value = userData;
+
+    if (userData) {
+      user.value = { ...userData, isFollowing: false };
     }
 
-    const { data: userPostData, error: postError } = await supabase
+    // Check if current user is following profile
+    const { data: followerData } = await supabase
+      .from("follower")
+      .select("*")
+      .eq("user_id", currentUser.user.id)
+      .eq("following_id", profileId);
+
+    user.value.isFollowing = followerData.length > 0;
+
+    // Fetch posts and likes (unchanged from original)
+    const { data: userPostData } = await supabase
       .from("posts")
       .select("*")
       .eq("user_id", profileId);
+    photos.value = userPostData || [];
 
-    if (postError) {
-      console.error(postError);
-    } else {
-      photos.value = userPostData;
-    }
-
-    const { data: userFollowers, error: followersError } = await supabase
-      .from("follower")
-      .select("*")
-      .eq("following_id", profileId);
-
-    if (followersError) {
-      console.error(followersError);
-    } else {
-      const isAlreadyFollowing = userFollowers.some(
-        (follower) => follower.follower_id === currentUser.user.id
-      );
-      user.value.isFollowing = isAlreadyFollowing;
-    }
-
-    const { data: userLikedData, error: likedError } = await supabase
+    const { data: userLikedData } = await supabase
       .from("likes")
       .select("*")
       .eq("user_id", profileId);
 
-    if (likedError) {
-      console.error(likedError);
-    } else {
-      const { data: allPosts, error: allPostsError } = await supabase
-        .from("posts")
-        .select("*");
-
-      if (allPostsError) {
-        console.error(allPostsError);
-      } else {
-        likedPhotos.value = allPosts.filter((post) =>
-          userLikedData.some((like) => like.post_id === post.id)
-        );
-      }
+    if (userLikedData?.length) {
+      const { data: allPosts } = await supabase.from("posts").select("*");
+      likedPhotos.value = allPosts.filter((post) =>
+        userLikedData.some((like) => like.post_id === post.id)
+      );
     }
   } catch (error) {
     console.error("Error fetching data:", error);
+  } finally {
+    loading.value = false;
   }
 };
 
