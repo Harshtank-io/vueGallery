@@ -86,6 +86,7 @@
           <!-- Social Login Buttons -->
           <div class="grid grid-cols-1">
             <button
+              v-on:click="handleGoogleLogin"
               type="button"
               class="flex items-center justify-center gap-2 p-4 border border-white/10 text-white hover:bg-white/5"
             >
@@ -126,9 +127,13 @@ const username = ref("");
 const password = ref("");
 const router = useRouter();
 
+const handleGoogleLogin = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+  });
+};
+
 const handleRegister = async () => {
-  // Step 1: Register the user with email and password
-  // const { user, error }
   const res = await supabase.auth.signUp({
     email: email.value,
     password: password.value,
@@ -143,7 +148,6 @@ const handleRegister = async () => {
     alert("User registered");
   }
 
-  // Step 2: Insert user info into the database if registration is successful
   const { error: insertError } = await supabase.from("users").insert([
     {
       id: res.data.user.id,
@@ -153,7 +157,6 @@ const handleRegister = async () => {
     },
   ]);
 
-  // Step 3: Handle insert errors (if any)
   if (insertError) {
     alert(insertError.message);
   } else {

@@ -1,10 +1,10 @@
 <template>
   <div class="border-b-1 py-4 md:py-8">
-    <nav
-      class="flex justify-between items-center md:text-2xl text-xl px-4 md:px-0"
-    >
+    <nav class="flex justify-between items-center md:text-2xl text-xl">
       <!-- Logo or brand name -->
-      <div class="text-xl font-bold">viewGallery</div>
+      <div class="size-20 cursor-pointer" @click="handleLogo">
+        <img src="../assets/icons/logo.png" />
+      </div>
 
       <!-- Hamburger menu for mobile -->
       <button @click="toggleMobileMenu" class="md:hidden">
@@ -17,18 +17,10 @@
         >
           <path
             v-if="!isMobileMenuOpen"
-            stroke-linecap="round"
-            stroke-linejoin="round"
             stroke-width="2"
             d="M4 6h16M4 12h16M4 18h16"
           />
-          <path
-            v-else
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
+          <path v-else stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
@@ -60,15 +52,14 @@
             @click="handleLogout"
             class="border-2 py-1 px-4 bg-black hover:bg-white hover:text-black text-white transition"
           >
-            Logout
+            <LogoutIcon />
           </button>
-          <PrimaryButton @click="handleProfile">Profile</PrimaryButton>
         </template>
       </div>
     </nav>
 
     <!-- Mobile menu -->
-    <div v-if="isMobileMenuOpen" class="md:hidden mt-4 px-4">
+    <div v-if="isMobileMenuOpen" class="md:hidden mt-4">
       <div class="flex flex-col gap-4">
         <router-link
           v-for="nav in filteredNavs"
@@ -90,11 +81,10 @@
         <template v-else>
           <button
             @click="handleLogout"
-            class="border-2 py-1 px-4 bg-black hover:bg-white hover:text-black text-white transition"
+            class="border-2 py-1 px-4 w-fit bg-black hover:bg-white hover:text-black text-white transition"
           >
             Logout
           </button>
-          <PrimaryButton @click="handleProfile">Profile</PrimaryButton>
         </template>
       </div>
     </div>
@@ -105,11 +95,12 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { supabase } from "../supabase";
-import PrimaryButton from "./buttons/PrimaryButton.vue";
+import LogoutIcon from "../assets/icons/LogoutIcon.vue";
 
 const navs = [
   { name: "Home", path: "/" },
   { name: "Gallery", path: "/gallery", requiresAuth: true },
+  { name: "Profile", path: "/profile", requiresAuth: true },
   { name: "About", path: "/about" },
   { name: "Contact Us", path: "/contact-us" },
 ];
@@ -118,6 +109,10 @@ const router = useRouter();
 const route = useRoute();
 const isUserValid = ref(false);
 const isMobileMenuOpen = ref(false);
+
+const handleLogo = () => {
+  router.push("/");
+};
 
 const checkUser = async () => {
   const {
@@ -139,11 +134,6 @@ const handleLogout = async () => {
   await supabase.auth.signOut();
   isUserValid.value = false;
   router.push("/");
-  closeMobileMenu();
-};
-
-const handleProfile = () => {
-  router.push("/profile");
   closeMobileMenu();
 };
 
