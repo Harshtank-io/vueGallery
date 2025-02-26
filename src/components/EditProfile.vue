@@ -117,7 +117,6 @@ watch(
   }
 );
 
-// Detect if the user is on a mobile device (Android)
 const isMobile = computed(() => {
   return /Android/i.test(navigator.userAgent);
 });

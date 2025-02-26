@@ -21,18 +21,19 @@
         </div>
         <div v-if="!isItMe">
           <button
-            v-if="!user.isFollowing"
-            @click="handleFollow(user)"
+            v-if="user.isFollowing"
+            @click="handleUnfollow(user)"
             class="mt-4"
           >
-            Follow
+            Unfollow
           </button>
           <button v-else @click="handleFollow(user)" class="mt-4">
-            Unfollow
+            Follow
           </button>
         </div>
       </div>
     </div>
+
     <div class="mt-6">
       <div class="flex border-b border-gray-700">
         <button
@@ -40,7 +41,7 @@
           :class="[
             'px-4 py-2 font-medium',
             activeTab === 'posts'
-              ? 'text-black border-b-2 '
+              ? 'text-black border-b-2'
               : 'text-gray-400 hover:text-gray-200',
           ]"
         >
@@ -60,7 +61,7 @@
       </div>
 
       <div class="mt-4">
-        <div v-if="activeTab === 'posts'" class="">
+        <div v-if="activeTab === 'posts'">
           <vue-masonry-wall
             v-if="!loading"
             :items="photos"
@@ -75,7 +76,6 @@
                     class="w-full object-cover transition-all"
                   />
                 </div>
-
                 <p
                   class="text-start font-semibold overflow-hidden text-ellipsis"
                 >
@@ -101,7 +101,6 @@
                     class="w-full object-cover transition-all"
                   />
                 </div>
-
                 <p
                   class="text-start font-semibold overflow-hidden text-ellipsis"
                 >
@@ -127,167 +126,147 @@ const activeTab = ref("posts");
 const photos = ref([]);
 const likedPhotos = ref([]);
 const loading = ref(false);
-const router = useRoute();
 const isItMe = ref(false);
-const followerCount = ref(0);
-
-const profileId = router.params.id;
-
 const user = ref({
   id: "",
-  name: "Chris Coyier",
+  user_name: "Chris Coyier",
   email: "chris@example.com",
-  bio: "I'm a web designer and developer. I'm the co-founder of CodePen and have written books on CSS and SVG.",
+  bio: "I am a web designer and developer. I co-founded CodePen and wrote books on CSS and SVG.",
   user_profile: "",
+  isFollowing: false,
 });
 
 const defaultProfilePicture = logo;
-
-const isValidFollow = () => {};
+const router = useRoute();
+const profileId = router.params.id;
 
 const handleFollow = async (user) => {
   const {
     data: { user: userData },
   } = await supabase.auth.getUser();
 
-  if (user.isFollowing) {
-    // Unfollow the user by deleting the follow relationship
-    const { data: unfollowData, error: unfollowError } = await supabase
-      .from("follower")
-      .delete()
-      .match({
-        user_id: userData.id,
-        following_id: user.id,
-      });
+  const { data: existingFollow, error: checkError } = await supabase
+    .from("follower")
+    .select("*")
+    .match({
+      user_id: userData.id,
+      following_id: user.id,
+    });
 
-    if (unfollowError) {
-      alert(unfollowError.message);
+  if (checkError) {
+    alert(checkError.message);
+    return;
+  }
+
+  if (existingFollow.length === 0) {
+    const { data: followData, error: followError } = await supabase
+      .from("follower")
+      .insert([
+        {
+          user_id: userData.id,
+          following_id: user.id,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+    if (followError) {
+      alert(followError.message);
     } else {
-      user.isFollowing = false;
+      user.isFollowing = true;
     }
   } else {
-    // Check for existing follow relationship (avoid duplicates)
-    const { data: existingFollow, error: checkError } = await supabase
-      .from("follower")
-      .select("*")
-      .match({
-        user_id: userData.id,
-        following_id: user.id,
-      });
-
-    if (checkError) {
-      alert(checkError.message);
-      return;
-    }
-
-    if (existingFollow.length == 0) {
-      // Insert a new follow relationship if no duplicate exists
-      const { data: followData, error: followError } = await supabase
-        .from("follower")
-        .insert([
-          {
-            user_id: userData.id,
-            following_id: user.id,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-
-      if (followError) {
-        alert(followError.message);
-      } else {
-        user.isFollowing = true;
-      }
-    } else {
-      alert("You are already following this user.");
-    }
+    alert("You are already following this user.");
   }
 };
 
-onMounted(async () => {
-  const userData = profileId;
+const handleUnfollow = async (user) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
 
-  if (userData) {
-    try {
-      const { data: currentUser, error: currentUserError } =
-        await supabase.auth.getUser();
+  const { data: unfollowData, error: unfollowError } = await supabase
+    .from("follower")
+    .delete()
+    .match({ user_id: userData.id, following_id: user.id });
 
-      if (currentUserError) throw currentUserError;
-
-      isItMe.value = currentUser.user.id === router.params.id;
-
-      // Fetch posts
-      const { data: userPostData, error: postError } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("user_id", profileId);
-
-      if (postError) {
-        console.error(postError);
-      } else {
-        photos.value = userPostData;
-      }
-
-      // Fetch followers
-      const { data: userFollowers, error: followersError } = await supabase
-        .from("follower")
-        .select("*")
-        .eq("following_id", profileId);
-
-      if (followersError) {
-        console.error(followersError);
-      } else {
-        followerCount.value = userFollowers.length;
-
-        const isAlreadyFollowing = userFollowers.some(
-          (follower) => follower.follower_id === currentUser.user.id
-        );
-
-        user.value = {
-          ...user.value,
-          isFollowing: isAlreadyFollowing,
-        };
-      }
-
-      // Fetch liked posts
-      const { data: userLikedData, error: likedError } = await supabase
-        .from("likes")
-        .select("*")
-        .eq("user_id", profileId);
-
-      if (likedError) {
-        console.error(likedError);
-      } else {
-        const { data: allPosts, error: allPostsError } = await supabase
-          .from("posts")
-          .select("*");
-
-        if (allPostsError) {
-          console.error(allPostsError);
-        } else {
-          const likedPostIds = allPosts.filter((post) =>
-            userLikedData.some((like) => like.post_id === post.id)
-          );
-          likedPhotos.value = likedPostIds;
-        }
-      }
-
-      // Fetch user details
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", profileId)
-        .single();
-
-      if (error) {
-        console.error(error);
-      } else {
-        user.value = data;
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      // Optionally, show an error message to the user
-    }
+  if (unfollowError) {
+    alert(unfollowError.message);
+  } else {
+    user.isFollowing = false;
   }
+};
+
+const fetchUserData = async () => {
+  try {
+    const { data: currentUser, error: currentUserError } =
+      await supabase.auth.getUser();
+    if (currentUserError) throw currentUserError;
+
+    isItMe.value = currentUser.user.id === profileId;
+
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", profileId)
+      .single();
+    if (userError) {
+      console.error(userError);
+    } else {
+      user.value = userData;
+    }
+
+    const { data: userPostData, error: postError } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id", profileId);
+
+    if (postError) {
+      console.error(postError);
+    } else {
+      photos.value = userPostData;
+    }
+
+    const { data: userFollowers, error: followersError } = await supabase
+      .from("follower")
+      .select("*")
+      .eq("following_id", profileId);
+
+    if (followersError) {
+      console.error(followersError);
+    } else {
+      const isAlreadyFollowing = userFollowers.some(
+        (follower) => follower.follower_id === currentUser.user.id
+      );
+      user.value.isFollowing = isAlreadyFollowing;
+    }
+
+    const { data: userLikedData, error: likedError } = await supabase
+      .from("likes")
+      .select("*")
+      .eq("user_id", profileId);
+
+    if (likedError) {
+      console.error(likedError);
+    } else {
+      const { data: allPosts, error: allPostsError } = await supabase
+        .from("posts")
+        .select("*");
+
+      if (allPostsError) {
+        console.error(allPostsError);
+      } else {
+        likedPhotos.value = allPosts.filter((post) =>
+          userLikedData.some((like) => like.post_id === post.id)
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching data:", error);
+  }
+};
+
+onMounted(() => {
+  fetchUserData();
 });
 </script>
 

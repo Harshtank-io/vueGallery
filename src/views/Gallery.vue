@@ -1,4 +1,44 @@
 <template>
+  <div class="p-1 sticky top-2 z-10 bg-white">
+    <div class="p-1 flex items-center border border-gray-300">
+      <input
+        type="text"
+        placeholder="Search..."
+        class="w-full p-2 border-none outline-none"
+        v-model="searchQuery"
+      />
+      <button
+        @click="handleSearch(searchQuery)"
+        class="bg-black text-white p-2 hover:bg-white hover:text-black border transition duration-200"
+      >
+        <SearchIcon />
+      </button>
+    </div>
+
+    <div v-if="searchedUsers.length > 0" class="mt-4 border border-gray-300">
+      <ul>
+        <li
+          v-for="user in searchedUsers"
+          :key="user.id"
+          class="flex items-center border-b border-gray-200 p-2"
+          @click="handleVisit(user)"
+        >
+          <img
+            :src="user.user_profile || previewImage"
+            alt="Profile photo"
+            class="w-10 h-10 mr-3"
+          />
+          <span class="font-semibold">{{ user.user_name }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- No Results Found Section -->
+    <div v-else-if="searchQuery && resul === 0" class="mt-4 text-gray-500">
+      No results found.
+    </div>
+  </div>
+
   <div class="container relative mx-auto flex flex-col">
     <div
       v-if="loading"
@@ -45,6 +85,7 @@
 
             <CommentIcon @click="toggleCommentBox(item)" />
           </div>
+
           <p class="text-start font-semibold overflow-hidden text-ellipsis">
             {{ item.name }}
           </p>
@@ -108,20 +149,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { supabase } from "../supabase";
-import PhotoForm from "../components/PhotoForm.vue";
-import { useRouter } from "vue-router";
 import VueMasonryWall from "@yeger/vue-masonry-wall";
-import LikeIcon from "../assets/icons/LikeIcon.vue";
-import CommentIcon from "../assets/icons/CommentIcon.vue";
 import { PlusIcon, SendIcon } from "lucide-vue-next";
-import ActionIcon from "../assets/icons/ActionIcon.vue";
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import CommentIcon from "../assets/icons/CommentIcon.vue";
+import LikeIcon from "../assets/icons/LikeIcon.vue";
+import PhotoForm from "../components/PhotoForm.vue";
+import { supabase } from "../supabase";
+import SearchIcon from "../assets/icons/SearchIcon.vue";
+import logo from "../assets/icons/logo.png";
 
 const photos = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const isModalOpen = ref(false);
+const searchedUsers = ref([]);
+
+const previewImage = logo;
 
 const router = useRouter();
 
@@ -150,12 +195,11 @@ const fetchLikes = async () => {
   }
 };
 
-// Handle visit profile action
 const handleVisit = (photo) => {
-  router.push(`/profile/${photo.user_id}`);
+  const profileId = photo.user_id || photo.id;
+  router.push(`/profile/${profileId}`);
 };
 
-// Handle like action
 const handleLike = async (photo) => {
   const {
     data: { user: userData },
@@ -178,7 +222,6 @@ const handleLike = async (photo) => {
   }
 };
 
-// Handle unlike action
 const handleUnliked = async (photo) => {
   const {
     data: { user: userData },
@@ -197,7 +240,6 @@ const handleUnliked = async (photo) => {
   }
 };
 
-// Fetch and handle comments for the post
 const handleComment = async (photo) => {
   const {
     data: { user: userData },
@@ -222,7 +264,6 @@ const handleComment = async (photo) => {
   }
 };
 
-// Toggle comment box visibility
 const toggleCommentBox = (photo) => {
   photo.isCommentOpen = !photo.isCommentOpen;
 };
@@ -247,7 +288,6 @@ const fetchImages = async () => {
   fetchLikes();
 };
 
-// Fetch comments for each post
 const fetchComments = async () => {
   const { data: commentsData, error } = await supabase
     .from("comments")
@@ -266,12 +306,34 @@ const fetchComments = async () => {
   });
 };
 
-// Open the modal
 const openModal = () => {
   isModalOpen.value = true;
 };
 
-// Close the modal
+const handleSearch = async (val) => {
+  if (val === "") {
+    alert("Search term is empty.");
+    searchedUsers.value = [];
+    return;
+  }
+
+  try {
+    const { data: searchResults, error: searchError } = await supabase
+      .from("users")
+      .select("*")
+      .ilike("user_name", `%${val}%`);
+
+    if (searchError) {
+      console.log(searchError);
+      return;
+    }
+
+    return (searchedUsers.value = searchResults);
+  } catch (error) {
+    console.error("Error occurred during search:", error);
+  }
+};
+
 const closeModal = () => {
   isModalOpen.value = false;
 };
