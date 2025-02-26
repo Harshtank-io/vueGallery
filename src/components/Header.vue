@@ -96,7 +96,6 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { supabase } from "../supabase";
 import LogoutIcon from "../assets/icons/LogoutIcon.vue";
-import PrimaryButton from "./buttons/PrimaryButton.vue";
 
 const navs = [
   { name: "Home", path: "/" },

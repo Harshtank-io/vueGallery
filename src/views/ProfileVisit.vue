@@ -2,7 +2,9 @@
   <div>
     <div class="text-white flex flex-col md:flex-row gap-6 items-stretch">
       <!-- Profile Image -->
-      <div class="md:w-40 md:h-40 flex-shrink-0 bg-black p-1 items-stretch">
+      <div
+        class="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 border-2 border-black items-stretch"
+      >
         <img
           :src="user.user_profile || defaultProfilePicture"
           alt="Profile Picture"
@@ -12,9 +14,23 @@
 
       <!-- User Information -->
       <div class="flex-1 text-black p-2">
-        <h2 class="text-3xl font-bold">{{ user.name }}</h2>
-        <p class="text-xl">{{ user.email }}</p>
-        <p class="mt-3 text-gray-700">{{ user.bio }}</p>
+        <div>
+          <h2 class="text-3xl font-bold">{{ user.user_name }}</h2>
+          <p class="text-xl">{{ user.email }}</p>
+          <p class="mt-3 text-gray-700">{{ user.bio }}</p>
+        </div>
+        <div v-if="!isItMe">
+          <button
+            v-if="!user.isFollowing"
+            @click="handleFollow(user)"
+            class="mt-4"
+          >
+            Follow
+          </button>
+          <button v-else @click="handleFollow(user)" class="mt-4">
+            Unfollow
+          </button>
+        </div>
       </div>
     </div>
     <div class="mt-6">
@@ -104,72 +120,172 @@
 import VueMasonryWall from "@yeger/vue-masonry-wall";
 import { onMounted, ref } from "vue";
 import { supabase } from "../supabase";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
+import logo from "../assets/icons/logo.png";
 
 const activeTab = ref("posts");
 const photos = ref([]);
 const likedPhotos = ref([]);
 const loading = ref(false);
 const router = useRoute();
+const isItMe = ref(false);
+const followerCount = ref(0);
 
 const profileId = router.params.id;
 
 const user = ref({
-  id: "", // Add an id field to store the user's ID
+  id: "",
   name: "Chris Coyier",
   email: "chris@example.com",
   bio: "I'm a web designer and developer. I'm the co-founder of CodePen and have written books on CSS and SVG.",
   user_profile: "",
 });
 
-const defaultProfilePicture =
-  "https://img.freepik.com/free-photo/bright-neon-colors-shining-wild-chameleon_23-2151682804.jpg";
+const defaultProfilePicture = logo;
+
+const isValidFollow = () => {};
+
+const handleFollow = async (user) => {
+  const {
+    data: { user: userData },
+  } = await supabase.auth.getUser();
+
+  if (user.isFollowing) {
+    // Unfollow the user by deleting the follow relationship
+    const { data: unfollowData, error: unfollowError } = await supabase
+      .from("follower")
+      .delete()
+      .match({
+        user_id: userData.id,
+        following_id: user.id,
+      });
+
+    if (unfollowError) {
+      alert(unfollowError.message);
+    } else {
+      user.isFollowing = false;
+    }
+  } else {
+    // Check for existing follow relationship (avoid duplicates)
+    const { data: existingFollow, error: checkError } = await supabase
+      .from("follower")
+      .select("*")
+      .match({
+        user_id: userData.id,
+        following_id: user.id,
+      });
+
+    if (checkError) {
+      alert(checkError.message);
+      return;
+    }
+
+    if (existingFollow.length == 0) {
+      // Insert a new follow relationship if no duplicate exists
+      const { data: followData, error: followError } = await supabase
+        .from("follower")
+        .insert([
+          {
+            user_id: userData.id,
+            following_id: user.id,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+      if (followError) {
+        alert(followError.message);
+      } else {
+        user.isFollowing = true;
+      }
+    } else {
+      alert("You are already following this user.");
+    }
+  }
+};
 
 onMounted(async () => {
   const userData = profileId;
 
   if (userData) {
-    const { data: userPostData, error: postError } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("user_id", profileId);
+    try {
+      const { data: currentUser, error: currentUserError } =
+        await supabase.auth.getUser();
 
-    if (postError) {
-      console.log(postError);
-    } else {
-      photos.value = userPostData;
-    }
+      if (currentUserError) throw currentUserError;
 
-    const { data: userLikedData, error: likedError } = await supabase
-      .from("likes")
-      .select("*")
-      .eq("user_id", profileId);
+      isItMe.value = currentUser.user.id === router.params.id;
 
-    const { data: allPosts, error: allPostsError } = await supabase
-      .from("posts")
-      .select("*");
+      // Fetch posts
+      const { data: userPostData, error: postError } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("user_id", profileId);
 
-    if (allPostsError) {
-      console.log(allPostsError);
-    }
+      if (postError) {
+        console.error(postError);
+      } else {
+        photos.value = userPostData;
+      }
 
-    const likedPostIds = allPosts.filter((post) =>
-      userLikedData.some((like) => like.post_id === post.id)
-    );
+      // Fetch followers
+      const { data: userFollowers, error: followersError } = await supabase
+        .from("follower")
+        .select("*")
+        .eq("following_id", profileId);
 
-    if (likedError) {
-      console.log(likedError);
-    } else {
-      likedPhotos.value = likedPostIds;
-    }
+      if (followersError) {
+        console.error(followersError);
+      } else {
+        followerCount.value = userFollowers.length;
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", profileId)
-      .single();
-    if (!error && data) {
-      user.value = data;
+        const isAlreadyFollowing = userFollowers.some(
+          (follower) => follower.follower_id === currentUser.user.id
+        );
+
+        user.value = {
+          ...user.value,
+          isFollowing: isAlreadyFollowing,
+        };
+      }
+
+      // Fetch liked posts
+      const { data: userLikedData, error: likedError } = await supabase
+        .from("likes")
+        .select("*")
+        .eq("user_id", profileId);
+
+      if (likedError) {
+        console.error(likedError);
+      } else {
+        const { data: allPosts, error: allPostsError } = await supabase
+          .from("posts")
+          .select("*");
+
+        if (allPostsError) {
+          console.error(allPostsError);
+        } else {
+          const likedPostIds = allPosts.filter((post) =>
+            userLikedData.some((like) => like.post_id === post.id)
+          );
+          likedPhotos.value = likedPostIds;
+        }
+      }
+
+      // Fetch user details
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", profileId)
+        .single();
+
+      if (error) {
+        console.error(error);
+      } else {
+        user.value = data;
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      // Optionally, show an error message to the user
     }
   }
 });

@@ -41,11 +41,23 @@
               "
               class="w-16 h-16 rounded-full object-cover"
             />
+
+            <!-- Show this for all devices -->
             <input
               type="file"
               @change="handleFileUpload"
               accept="image/*"
               class="border p-2 w-full"
+            />
+
+            <!-- Conditionally show this on mobile (Android) devices -->
+            <input
+              v-if="isMobile"
+              type="file"
+              @change="handleFileUpload"
+              class="border p-2 w-full"
+              accept="image/*"
+              capture="camera"
             />
           </div>
         </div>
@@ -81,7 +93,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, watch } from "vue";
+import { defineProps, defineEmits, ref, computed, watch } from "vue";
 import { supabase } from "../supabase";
 
 const props = defineProps({
@@ -94,6 +106,7 @@ const emit = defineEmits(["close", "updateUser"]);
 const localUser = ref({ ...props.user });
 const file = ref(null);
 const previewImage = ref(null);
+
 const defaultProfilePicture =
   "https://img.freepik.com/free-photo/bright-neon-colors-shining-wild-chameleon_23-2151682804.jpg";
 
@@ -103,6 +116,11 @@ watch(
     localUser.value = { ...newVal };
   }
 );
+
+// Detect if the user is on a mobile device (Android)
+const isMobile = computed(() => {
+  return /Android/i.test(navigator.userAgent);
+});
 
 const handleFileUpload = (event) => {
   file.value = event.target.files[0];

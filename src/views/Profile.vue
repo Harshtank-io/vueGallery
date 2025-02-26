@@ -70,7 +70,7 @@
           >
             <template v-slot:default="{ item }">
               <div class="p-1">
-                <div class="relative p-1 bg-black" @click="handleClick(item)">
+                <div class="relative p-1 bg-black">
                   <img
                     :src="item.image_url"
                     alt="Uploaded Image"
@@ -96,7 +96,7 @@
           >
             <template v-slot:default="{ item }">
               <div class="p-1">
-                <div class="relative p-1 bg-black" @click="handleClick(item)">
+                <div class="relative p-1 bg-black">
                   <img
                     :src="item.image_url"
                     alt="Uploaded Image"
@@ -132,7 +132,6 @@ const loading = ref(false);
 const isEditOpen = ref(false);
 
 const user = ref({
-  id: "", // Add an id field to store the user's ID
   name: "Chris Coyier",
   email: "chris@example.com",
   bio: "I'm a web designer and developer. I'm the co-founder of CodePen and have written books on CSS and SVG.",
