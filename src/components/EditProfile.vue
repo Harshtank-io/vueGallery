@@ -39,7 +39,7 @@
               :src="
                 previewImage || localUser.user_profile || defaultProfilePicture
               "
-              class="w-16 h-16 rounded-full object-cover"
+              class="w-16 h-16 flex-shrink-0 object-cover"
             />
 
             <!-- Show this for all devices -->

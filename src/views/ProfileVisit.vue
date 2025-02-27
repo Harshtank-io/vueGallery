@@ -75,6 +75,13 @@
                 <div class="relative p-1 bg-black" @click="handleClick(item)">
                   <img
                     :src="item.image_url"
+                    :style="
+                      item.filter
+                        ? {
+                            filter: `contrast(${item.filter.contrast}%) brightness(${item.filter.brightness}%) saturate(${item.filter.saturation}%)`,
+                          }
+                        : ''
+                    "
                     alt="Uploaded Image"
                     class="w-full object-cover transition-all"
                   />
@@ -100,6 +107,13 @@
                 <div class="relative p-1 bg-black" @click="handleClick(item)">
                   <img
                     :src="item.image_url"
+                    :style="
+                      item.filter
+                        ? {
+                            filter: `contrast(${item.filter.contrast}%) brightness(${item.filter.brightness}%) saturate(${item.filter.saturation}%)`,
+                          }
+                        : ''
+                    "
                     alt="Uploaded Image"
                     class="w-full object-cover transition-all"
                   />
