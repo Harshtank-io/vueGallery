@@ -95,7 +95,7 @@
       v-if="isModalOpen"
       class="fixed inset-0 backdrop-blur-sm bg-black/10 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 max-w-md w-full">
+      <div class="bg-white p-6 max-w-md w-full h-[80vh] overflow-y-auto">
         <h3 class="text-xl font-semibold mb-4">Add New Photo</h3>
         <PhotoForm @imageUploaded="handleImageUploaded" />
         <button
