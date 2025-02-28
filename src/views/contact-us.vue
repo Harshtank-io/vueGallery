@@ -2,12 +2,12 @@
 <template>
   <div class="min-h-screen bg-white text-black">
     <!-- Header -->
-    <header class="border-b border-black p-4">
+    <header class="border-b border-black py-4">
       <h1 class="text-2xl font-bold">Contact Us</h1>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-4xl mx-auto py-8 px-4">
+    <main class="max-w-4xl mx-auto py-8">
       <!-- Contact Form -->
       <form @submit.prevent="submitForm" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
