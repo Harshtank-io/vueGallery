@@ -1,44 +1,5 @@
 <template>
-  <div class="p-1 sticky top-2 z-10 bg-white">
-    <div class="p-1 flex items-center border border-gray-300">
-      <input
-        type="text"
-        placeholder="Search..."
-        class="w-full p-2 border-none outline-none"
-        v-model="searchQuery"
-      />
-      <button
-        @click="handleSearch(searchQuery)"
-        class="bg-black text-white p-2 hover:bg-white hover:text-black border transition duration-200"
-      >
-        <SearchIcon />
-      </button>
-    </div>
-
-    <div v-if="searchedUsers.length > 0" class="mt-4 border border-gray-300">
-      <ul>
-        <li
-          v-for="user in searchedUsers"
-          :key="user.id"
-          class="flex items-center border-b border-gray-200 p-2"
-          @click="handleVisit(user)"
-        >
-          <img
-            :src="user.user_profile || previewImage"
-            alt="Profile photo"
-            class="w-10 h-10 mr-3"
-          />
-          <span class="font-semibold">{{ user.user_name }}</span>
-        </li>
-      </ul>
-    </div>
-
-    <!-- No Results Found Section -->
-    <div v-else-if="searchQuery && resul === 0" class="mt-4 text-gray-500">
-      No results found.
-    </div>
-  </div>
-
+  <SearchBar />
   <div class="container relative mx-auto flex flex-col">
     <div
       v-if="loading"
@@ -69,6 +30,13 @@
           >
             <img
               :src="item.image_url"
+              :style="
+                item.filter
+                  ? {
+                      filter: `contrast(${item.filter.contrast}%) brightness(${item.filter.brightness}%) saturate(${item.filter.saturation}%)`,
+                    }
+                  : ''
+              "
               alt="Uploaded Image"
               class="w-full object-cover transition-all"
             />
@@ -127,7 +95,7 @@
       v-if="isModalOpen"
       class="fixed inset-0 backdrop-blur-sm bg-black/10 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 max-w-md w-full">
+      <div class="bg-white p-6 max-w-md w-full h-[80vh] overflow-y-auto">
         <h3 class="text-xl font-semibold mb-4">Add New Photo</h3>
         <PhotoForm @imageUploaded="handleImageUploaded" />
         <button
@@ -157,16 +125,16 @@ import CommentIcon from "../assets/icons/CommentIcon.vue";
 import LikeIcon from "../assets/icons/LikeIcon.vue";
 import PhotoForm from "../components/PhotoForm.vue";
 import { supabase } from "../supabase";
-import SearchIcon from "../assets/icons/SearchIcon.vue";
-import logo from "../assets/icons/logo.png";
+import SearchBar from "../components/SearchBar.vue";
+
+const red = {
+  color: "red",
+};
 
 const photos = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const isModalOpen = ref(false);
-const searchedUsers = ref([]);
-
-const previewImage = logo;
 
 const router = useRouter();
 
@@ -193,11 +161,6 @@ const fetchLikes = async () => {
       photo.liked = isLiked;
     });
   }
-};
-
-const handleVisit = (photo) => {
-  const profileId = photo.user_id || photo.id;
-  router.push(`/profile/${profileId}`);
 };
 
 const handleLike = async (photo) => {
@@ -275,7 +238,7 @@ const fetchImages = async () => {
 
   const { data, error: fetchError } = await supabase
     .from("posts")
-    .select("id, name, description, image_url, user_id, likes(post_id)");
+    .select("id, name, description, image_url, user_id, filter,likes(post_id)");
 
   if (fetchError) {
     error.value = "Error fetching images!";
@@ -310,28 +273,9 @@ const openModal = () => {
   isModalOpen.value = true;
 };
 
-const handleSearch = async (val) => {
-  if (val === "") {
-    alert("Search term is empty.");
-    searchedUsers.value = [];
-    return;
-  }
-
-  try {
-    const { data: searchResults, error: searchError } = await supabase
-      .from("users")
-      .select("*")
-      .ilike("user_name", `%${val}%`);
-
-    if (searchError) {
-      console.log(searchError);
-      return;
-    }
-
-    return (searchedUsers.value = searchResults);
-  } catch (error) {
-    console.error("Error occurred during search:", error);
-  }
+const handleVisit = (photo) => {
+  const profileId = photo.user_id || photo.id;
+  router.push(`/profile/${profileId}`);
 };
 
 const closeModal = () => {
