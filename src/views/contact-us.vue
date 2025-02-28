@@ -91,14 +91,6 @@
           <h3 class="text-lg font-semibold mb-2">Email</h3>
           <p>contact@example.com</p>
         </div>
-        <div>
-          <h3 class="text-lg font-semibold mb-2">Phone</h3>
-          <p>+1 (555) 123-4567</p>
-        </div>
-        <div>
-          <h3 class="text-lg font-semibold mb-2">Address</h3>
-          <p>123 Main Street<br />City, State 12345</p>
-        </div>
       </div>
     </main>
 
